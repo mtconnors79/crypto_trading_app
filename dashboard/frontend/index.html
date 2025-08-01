@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Crypto Trading Bot Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-gray-900 text-white">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function Dashboard() {
+            const [dashboardData, setDashboardData] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [connected, setConnected] = useState(false);
+
+            // Fetch initial data
+            useEffect(() => {
+                fetchDashboardData();
+                connectWebSocket();
+            }, []);
+
+            const fetchDashboardData = async () => {
+                try {
+                    const response = await fetch('http://localhost:8000/api/dashboard');
+                    const data = await response.json();
+                    setDashboardData(data);
+                    setLoading(false);
+                } catch (error) {
+                    console.error('Error fetching dashboard data:', error);
+                    setLoading(false);
+                }
+            };
+
+            const connectWebSocket = () => {
+                const ws = new WebSocket('ws://localhost:8000/ws');
+                
+                ws.onopen = () => {
+                    setConnected(true);
+                    console.log('WebSocket connected');
+                };
+
+                ws.onmessage = (event) => {
+                    const update = JSON.parse(event.data);
+                    if (update.type === 'portfolio_update') {
+                        setDashboardData(prev => ({
+                            ...prev,
+                            portfolio: update.data,
+                            market: update.market_data
+                        }));
+                    }
+                };
+
+                ws.onclose = () => {
+                    setConnected(false);
+                    console.log('WebSocket disconnected');
+                    // Reconnect after 5 seconds
+                    setTimeout(connectWebSocket, 5000);
+                };
+            };
+
+            if (loading) {
+                return (
+                    <div className="flex items-center justify-center min-h-screen">
+                        <div className="text-xl">Loading dashboard...</div>
+                    </div>
+                );
+            }
+
+            const portfolio = dashboardData?.portfolio || {};
+            const trades = dashboardData?.trades || [];
+            const analytics = dashboardData?.analytics || {};
+            const market = dashboardData?.market || [];
+
+            return (
+                <div className="min-h-screen bg-gray-900 p-6">
+                    {/* Header */}
+                    <div className="mb-8">
+                        <h1 className="text-3xl font-bold text-white mb-2">
+                            🚀 AI Crypto Trading Bot Dashboard
+                        </h1>
+                        <div className="flex items-center space-x-4">
+                            <div className={`flex items-center ${connected ? 'text-green-400' : 'text-red-400'}`}>
+                                <div className={`w-2 h-2 rounded-full mr-2 ${connected ? 'bg-green-400' : 'bg-red-400'}`}></div>
+                                {connected ? 'Live' : 'Disconnected'}
+                            </div>
+                            <div className="text-gray-400">
+                                Last updated: {new Date().toLocaleTimeString()}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Portfolio Summary */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div className="bg-gray-800 rounded-lg p-6">
+                            <h3 className="text-lg font-semibold mb-2">💰 Portfolio Value</h3>
+                            <div className="text-3xl font-bold text-green-400">
+                                ${portfolio.total_portfolio_value?.toFixed(2) || '0.00'}
+                            </div>
+                            <div className="text-sm text-gray-400 mt-1">
+                                Cash: ${portfolio.cash_balance?.toFixed(2) || '0.00'}
+                            </div>
+                        </div>
+
+                        <div className="bg-gray-800 rounded-lg p-6">
+                            <h3 className="text-lg font-semibold mb-2">📊 Total Trades</h3>
+                            <div className="text-3xl font-bold text-blue-400">
+                                {analytics.total_trades || 0}
+                            </div>
+                            <div className="text-sm text-gray-400 mt-1">
+                                Win Rate: {analytics.win_rate || 0}%
+                            </div>
+                        </div>
+
+                        <div className="bg-gray-800 rounded-lg p-6">
+                            <h3 className="text-lg font-semibold mb-2">🎯 Active Positions</h3>
+                            <div className="text-3xl font-bold text-purple-400">
+                                {portfolio.positions?.length || 0}
+                            </div>
+                            <div className="text-sm text-gray-400 mt-1">
+                                Open trades
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Current Positions */}
+                    {portfolio.positions && portfolio.positions.length > 0 && (
+                        <div className="bg-gray-800 rounded-lg p-6 mb-8">
+                            <h3 className="text-xl font-semibold mb-4">📊 Current Positions</h3>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b border-gray-700">
+                                            <th className="text-left py-2">Symbol</th>
+                                            <th className="text-right py-2">Quantity</th>
+                                            <th className="text-right py-2">Current Price</th>
+                                            <th className="text-right py-2">Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {portfolio.positions.map((position, index) => (
+                                            <tr key={index} className="border-b border-gray-700">
+                                                <td className="py-2 font-medium">{position.symbol}</td>
+                                                <td className="text-right py-2">{position.quantity.toFixed(6)}</td>
+                                                <td className="text-right py-2">${position.current_price.toFixed(6)}</td>
+                                                <td className="text-right py-2 text-green-400">
+                                                    ${position.position_value.toFixed(2)}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Market Data */}
+                    <div className="bg-gray-800 rounded-lg p-6 mb-8">
+                        <h3 className="text-xl font-semibold mb-4">📈 Market Overview</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {market.map((coin, index) => (
+                                <div key={index} className="bg-gray-700 rounded p-4">
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-semibold">{coin.symbol}</span>
+                                        <span className={`text-sm ${coin.change_24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                            {coin.change_24h?.toFixed(2) || 0}%
+                                        </span>
+                                    </div>
+                                    <div className="text-xl font-bold mt-1">
+                                        ${coin.price?.toFixed(6) || '0.000000'}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Recent Trades */}
+                    <div className="bg-gray-800 rounded-lg p-6">
+                        <h3 className="text-xl font-semibold mb-4">🔄 Recent Trades</h3>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="border-b border-gray-700">
+                                        <th className="text-left py-2">Time</th>
+                                        <th className="text-left py-2">Symbol</th>
+                                        <th className="text-left py-2">Side</th>
+                                        <th className="text-right py-2">Amount</th>
+                                        <th className="text-right py-2">Price</th>
+                                        <th className="text-right py-2">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {trades.slice(0, 10).map((trade, index) => (
+                                        <tr key={index} className="border-b border-gray-700">
+                                            <td className="py-2">
+                                                {new Date(trade.timestamp).toLocaleString()}
+                                            </td>
+                                            <td className="py-2 font-medium">{trade.symbol}</td>
+                                            <td className="py-2">
+                                                <span className={`px-2 py-1 rounded text-xs ${
+                                                    trade.side === 'buy' ? 'bg-green-600' : 'bg-red-600'
+                                                }`}>
+                                                    {trade.side.toUpperCase()}
+                                                </span>
+                                            </td>
+                                            <td className="text-right py-2">{trade.amount?.toFixed(6) || '0'}</td>
+                                            <td className="text-right py-2">${trade.price?.toFixed(6) || '0'}</td>
+                                            <td className="text-right py-2">${trade.cost?.toFixed(2) || '0'}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<Dashboard />, document.getElementById('root'));
+    </script>
+</body>
+</html>
