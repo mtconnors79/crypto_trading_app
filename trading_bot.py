@@ -21,6 +21,10 @@ from src.data.collector import GeminiDataCollector
 from src.portfolio.manager import RealGeminiPortfolioManager
 from src.trading.strategy import AdvancedTradingStrategy
 from config.trading_symbols import SYMBOLS, MARKET_CONDITION
+from config.risk_management import (
+    STOP_LOSS_ENABLED, STOP_LOSS_PERCENTAGE,
+    TAKE_PROFIT_ENABLED, TAKE_PROFIT_PERCENTAGE
+)
 
 # ENHANCED TRADING CONFIGURATION
 BASE_POSITION_SIZE = 50.0  # Base amount per trade
@@ -61,6 +65,8 @@ class EnhancedTradingBot:
         self.sell_signals = {}  # Track sell signals per symbol
         self.position_entries = {}  # Track entry details for partial selling
         self.confidence_history = {}  # Track confidence trends
+        self.stop_losses = {}  # Track stop-loss levels per position
+        self.take_profits = {}  # Track take-profit levels per position
         
         # Performance tracking for dynamic sizing
         self.recent_trades_performance = []
@@ -79,6 +85,8 @@ class EnhancedTradingBot:
         print(f"⚡ Dynamic Position Sizing: ${MIN_POSITION_SIZE}-${MAX_POSITION_SIZE}")
         print(f"🔄 Partial Selling: {PARTIAL_SELL_ENABLED}")
         print(f"📊 Confidence-Based Logic: ENABLED")
+        print(f"🛡️ Stop-Loss: {'ENABLED' if STOP_LOSS_ENABLED else 'DISABLED'} ({STOP_LOSS_PERCENTAGE*100:.1f}%)")
+        print(f"🎯 Take-Profit: {'ENABLED' if TAKE_PROFIT_ENABLED else 'DISABLED'} ({TAKE_PROFIT_PERCENTAGE*100:.1f}%)")
         print(f"🚀 Small Cap Focus: HIGH RISK, HIGH REWARD!")
         
     def calculate_dynamic_position_size(self, confidence, symbol, current_price):
@@ -274,6 +282,15 @@ class EnhancedTradingBot:
                         'entry_time': datetime.now()
                     }
                     
+                    # Set stop-loss and take-profit levels
+                    if STOP_LOSS_ENABLED:
+                        self.stop_losses[symbol] = current_price * (1 - STOP_LOSS_PERCENTAGE)
+                        print(f"   🛡️ Stop-Loss: ${self.stop_losses[symbol]:.6f} (-{STOP_LOSS_PERCENTAGE*100:.1f}%)")
+                    
+                    if TAKE_PROFIT_ENABLED:
+                        self.take_profits[symbol] = current_price * (1 + TAKE_PROFIT_PERCENTAGE)
+                        print(f"   🎯 Take-Profit: ${self.take_profits[symbol]:.6f} (+{TAKE_PROFIT_PERCENTAGE*100:.1f}%)")
+                    
                     # Reset sell signals for this symbol
                     self.sell_signals[symbol] = 0
                     
@@ -316,6 +333,10 @@ class EnhancedTradingBot:
                 if sell_quantity == self.portfolio.positions.get(symbol, {}).get('quantity', 0):
                     if symbol in self.position_entries:
                         del self.position_entries[symbol]
+                    if symbol in self.stop_losses:
+                        del self.stop_losses[symbol]
+                    if symbol in self.take_profits:
+                        del self.take_profits[symbol]
                 
                 self._log_trade('SELL', symbol, current_price, sell_quantity, confidence, msg, revenue)
                 return True
@@ -357,6 +378,58 @@ class EnhancedTradingBot:
         except Exception as e:
             print(f"Logging error: {e}")
     
+    def check_stop_loss_take_profit(self, current_prices):
+        """Check and execute stop-loss or take-profit orders"""
+        positions_to_sell = []
+        
+        for symbol in list(self.portfolio.positions.keys()):
+            if symbol not in current_prices:
+                continue
+                
+            current_price = current_prices[symbol]
+            
+            # Check stop-loss
+            if symbol in self.stop_losses and current_price <= self.stop_losses[symbol]:
+                positions_to_sell.append((symbol, 'stop_loss', current_price))
+                print(f"\n🛑 STOP-LOSS TRIGGERED: {symbol}")
+                print(f"   Current: ${current_price:.6f} | Stop: ${self.stop_losses[symbol]:.6f}")
+            
+            # Check take-profit
+            elif symbol in self.take_profits and current_price >= self.take_profits[symbol]:
+                positions_to_sell.append((symbol, 'take_profit', current_price))
+                print(f"\n🎯 TAKE-PROFIT TRIGGERED: {symbol}")
+                print(f"   Current: ${current_price:.6f} | Target: ${self.take_profits[symbol]:.6f}")
+        
+        # Execute stop-loss/take-profit sells
+        for symbol, reason, price in positions_to_sell:
+            quantity = self.portfolio.positions[symbol]['quantity']
+            revenue = quantity * price
+            fee = revenue * TRADING_FEE
+            
+            success, msg = self.portfolio.sell(symbol, quantity, price, fee)
+            if success:
+                self.daily_trades += 1
+                
+                # Calculate P&L
+                entry_price = self.position_entries.get(symbol, {}).get('entry_price', price)
+                pnl = (price - entry_price) * quantity - fee
+                self.daily_pnl += pnl
+                
+                print(f"   💰 Sold: {quantity:.6f} @ ${price:.6f}")
+                print(f"   💹 P&L: ${pnl:+.2f}")
+                
+                # Clean up tracking
+                if symbol in self.position_entries:
+                    del self.position_entries[symbol]
+                if symbol in self.stop_losses:
+                    del self.stop_losses[symbol]
+                if symbol in self.take_profits:
+                    del self.take_profits[symbol]
+                if symbol in self.sell_signals:
+                    del self.sell_signals[symbol]
+                
+                self._log_trade('SELL', symbol, price, quantity, 0, f"{reason.upper()}: {msg}", revenue)
+    
     def run_trading_cycle(self):
         """Run enhanced trading cycle"""
         self.cycle_count += 1
@@ -370,6 +443,9 @@ class EnhancedTradingBot:
         if not current_prices:
             print("❌ Could not get current prices")
             return
+        
+        # Check stop-loss and take-profit levels first
+        self.check_stop_loss_take_profit(current_prices)
         
         # Show enhanced performance metrics
         current_portfolio_value = self.portfolio.get_portfolio_value(current_prices)
