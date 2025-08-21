@@ -6,7 +6,11 @@ import os
 
 # Add config path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from config.config import *
+from config.config import (
+    SMA_SHORT_WINDOW, SMA_LONG_WINDOW, RSI_PERIOD,
+    RSI_OVERSOLD, RSI_OVERBOUGHT, BACKTEST_INITIAL_BALANCE,
+    BACKTEST_TRADING_FEE
+)
 
 class SimpleMovingAverageStrategy:
     def __init__(self):
