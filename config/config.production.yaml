@@ -1,0 +1,41 @@
+# Production Environment Configuration
+# Automatically loaded when ENVIRONMENT=production
+
+# Production-optimized settings
+trading:
+  base_position_size: 100.0       # Larger positions for production
+  max_position_size: 200.0        # Higher maximum
+  min_position_size: 50.0         # Higher minimum
+  max_daily_trades: 100           # More trades allowed
+  max_positions: 6                # More concurrent positions
+  min_confidence_threshold: 0.3   # Balanced confidence
+  save_trades_to_csv: true        # Always save for analysis
+
+# Production risk management
+risk_management:
+  stop_loss_percentage: 0.04      # 4% stop-loss
+  take_profit_percentage: 0.08    # 8% take-profit
+  max_position_risk: 0.015        # 1.5% position risk
+  max_portfolio_risk: 0.08        # 8% portfolio risk
+  max_daily_loss_usd: 500.0       # Higher daily loss limit
+  monitor_drawdown: true          # Always monitor
+  pause_on_drawdown: true         # Safety first
+
+# Standard production timing
+constants:
+  default_cycle_delay: 300        # 5 minute cycles
+  min_sleep_time: 30              # Longer sleep for stability
+  default_max_retries: 5          # More retries for reliability
+
+# Production logging
+logging:
+  level: "INFO"                   # Standard logging
+  log_trades: true
+  log_performance: true
+  max_log_size_mb: 50             # Larger log files
+  backup_count: 10                # More backups
+
+# Disable debug features
+development:
+  debug_mode: false
+  verbose_logging: false

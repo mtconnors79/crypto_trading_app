@@ -4,10 +4,20 @@ Central configuration file for all trading bot parameters
 """
 
 import os
+import sys
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
+
+# Add src to path for YAML loader
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'src'))
+
+try:
+    from src.config.yaml_loader import get_yaml_loader
+    _yaml_available = True
+except ImportError:
+    _yaml_available = False
 
 # API Configuration
 BINANCE_API_KEY = os.getenv('BINANCE_API_KEY', '')
@@ -89,3 +99,14 @@ NOTIFICATION_WEBHOOK_URL = os.getenv('NOTIFICATION_WEBHOOK_URL', '')
 # Debug Settings
 DEBUG_MODE = IS_DEVELOPMENT
 VERBOSE_LOGGING = DEBUG_MODE
+
+# Apply YAML overrides if available
+if _yaml_available:
+    try:
+        yaml_loader = get_yaml_loader()
+        updated_count = yaml_loader.update_module_config(globals(), 'trading')
+        if updated_count > 0:
+            print(f"✅ Applied {updated_count} YAML configuration overrides")
+    except Exception as e:
+        print(f"⚠️ Warning: Failed to load YAML config overrides: {e}")
+        print("⚠️ Continuing with default configuration values")

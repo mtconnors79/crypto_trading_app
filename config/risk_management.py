@@ -148,6 +148,22 @@ EXIT_PRIORITY = [
     'smallest_position' # Exit smallest positions first
 ]
 
+# Apply YAML overrides if available
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'src'))
+
+try:
+    from src.config.yaml_loader import get_yaml_loader
+    yaml_loader = get_yaml_loader()
+    updated_count = yaml_loader.update_module_config(globals(), 'risk_management')
+    if updated_count > 0:
+        print(f"✅ Applied {updated_count} YAML risk management overrides")
+except ImportError:
+    pass  # YAML not available
+except Exception as e:
+    print(f"⚠️ Warning: Failed to load YAML risk config overrides: {e}")
+
 # Validate all parameters on module load
 try:
     validate_risk_parameters()

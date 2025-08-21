@@ -1,0 +1,38 @@
+# Local Configuration Override Example
+# Copy this file to config.local.yaml and customize your settings
+# config.local.yaml has the highest priority and overrides all other settings
+
+# Example: Conservative trading settings
+trading:
+  base_position_size: 25.0        # Smaller position size
+  max_position_size: 40.0         # Lower maximum
+  min_position_size: 10.0         # Lower minimum
+  max_daily_trades: 20            # Fewer daily trades
+  max_positions: 2                # Only 2 concurrent positions
+  min_confidence_threshold: 0.35  # Higher confidence required
+
+# Example: More conservative risk management
+risk_management:
+  stop_loss_percentage: 0.03      # Tighter stop-loss (3%)
+  take_profit_percentage: 0.06    # Lower take-profit (6%)
+  max_position_risk: 0.01         # Lower position risk (1%)
+  max_daily_loss_usd: 50.0        # Lower daily loss limit
+
+# Example: Faster trading cycles for testing
+constants:
+  default_cycle_delay: 60         # 1 minute cycles instead of 2
+  min_sleep_time: 10              # Shorter minimum sleep
+
+# Example: Debug mode for development
+development:
+  debug_mode: true
+  verbose_logging: true
+
+# Example: Different exchange
+# trading:
+#   default_exchange: "binance"
+
+# Example: Disable risky features
+# risk_management:
+#   stop_loss_enabled: false
+#   take_profit_enabled: false

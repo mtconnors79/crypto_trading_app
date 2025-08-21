@@ -3,6 +3,10 @@
 .env.local
 .env.production
 
+# Local YAML configuration overrides - NEVER commit these!
+config/config.local.yaml
+config/config.*.local.yaml
+
 # Python
 __pycache__/
 *.py[cod]
