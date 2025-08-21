@@ -21,31 +21,17 @@ from src.data.collector import GeminiDataCollector
 from src.portfolio.manager import RealGeminiPortfolioManager
 from src.trading.strategy import AdvancedTradingStrategy
 from config.trading_symbols import SYMBOLS, MARKET_CONDITION
+from config.config import (
+    BASE_POSITION_SIZE, MAX_POSITION_SIZE, MIN_POSITION_SIZE,
+    MIN_CONFIDENCE_THRESHOLD, MAX_DAILY_TRADES, MAX_POSITIONS,
+    TRADE_COOLDOWN, MAX_DAILY_LOSS, SAVE_TRADES_TO_CSV,
+    PARTIAL_SELL_ENABLED, FIRST_SELL_PERCENTAGE, SECOND_SELL_PERCENTAGE,
+    DEFAULT_TRADING_FEE as TRADING_FEE
+)
 from config.risk_management import (
     STOP_LOSS_ENABLED, STOP_LOSS_PERCENTAGE,
     TAKE_PROFIT_ENABLED, TAKE_PROFIT_PERCENTAGE
 )
-
-# ENHANCED TRADING CONFIGURATION
-BASE_POSITION_SIZE = 50.0  # Base amount per trade
-MAX_POSITION_SIZE = 80.0   # Maximum per trade (for highest confidence)
-MIN_POSITION_SIZE = 20.0   # Minimum per trade (for lowest confidence)
-MIN_CONFIDENCE_THRESHOLD = 0.25
-MAX_DAILY_TRADES = 50
-MAX_POSITIONS = 4
-TRADE_COOLDOWN = 90
-MAX_DAILY_LOSS = 15.0
-SAVE_TRADES_TO_CSV = True
-
-# Partial Selling Configuration
-PARTIAL_SELL_ENABLED = True
-FIRST_SELL_PERCENTAGE = 0.5   # Sell 50% on first sell signal
-SECOND_SELL_PERCENTAGE = 1.0  # Sell remaining 50% on second signal
-
-# Gemini Fee Structure
-GEMINI_MAKER_FEE = 0.0025
-GEMINI_TAKER_FEE = 0.0035
-TRADING_FEE = GEMINI_MAKER_FEE
 
 class EnhancedTradingBot:
     def __init__(self):
@@ -256,6 +242,11 @@ class EnhancedTradingBot:
             return False
             
         if signal == 'buy' and confidence >= MIN_CONFIDENCE_THRESHOLD:
+            # Check if we already have a position in this symbol
+            if symbol in self.portfolio.positions:
+                print(f"   ⚠️ Already holding position in {symbol}")
+                return False
+            
             # Check position limits
             if len(self.portfolio.positions) >= MAX_POSITIONS:
                 print(f"   ⛔ Max positions reached ({MAX_POSITIONS})")
@@ -496,8 +487,8 @@ class EnhancedTradingBot:
         
         print(f"\n⚡ Enhanced cycle completed | Trades executed: {trades_executed}")
     
-    def run(self, duration_hours=2, cycle_delay=120):
-        """Run the enhanced trading bot"""
+    def run(self, duration_hours=2, cycle_delay=120, max_retries=3):
+        """Run the enhanced trading bot with error recovery"""
         if not self.test_connections():
             print("❌ Cannot start without exchange connection")
             return
@@ -509,31 +500,66 @@ class EnhancedTradingBot:
         print(f"💸 Dynamic position sizing: ${MIN_POSITION_SIZE}-${MAX_POSITION_SIZE}")
         print(f"🔄 Partial selling: {'ENABLED' if PARTIAL_SELL_ENABLED else 'DISABLED'}")
         print(f"📈 Strategy: {MARKET_CONDITION.upper()} with enhanced logic")
+        print(f"🛡️ Error recovery: ENABLED (max {max_retries} retries)")
         print(f"\n💡 Press Ctrl+C anytime to stop and see results")
         
         end_time = datetime.now() + timedelta(hours=duration_hours)
         self.is_running = True
+        consecutive_errors = 0
         
         try:
             while self.is_running and datetime.now() < end_time:
-                cycle_start = time.time()
-                self.run_trading_cycle()
-                cycle_duration = time.time() - cycle_start
-                
-                sleep_time = max(20, cycle_delay - int(cycle_duration))
-                
-                for i in range(sleep_time, 0, -10):
-                    if not self.is_running:
+                try:
+                    cycle_start = time.time()
+                    self.run_trading_cycle()
+                    cycle_duration = time.time() - cycle_start
+                    
+                    # Reset error counter on successful cycle
+                    consecutive_errors = 0
+                    
+                    sleep_time = max(20, cycle_delay - int(cycle_duration))
+                    
+                    for i in range(sleep_time, 0, -10):
+                        if not self.is_running:
+                            break
+                        print(f"💤 Next cycle in {i}s... (Press Ctrl+C to stop)", end='\r')
+                        time.sleep(min(10, i))
+                    
+                    print(" " * 50, end='\r')
+                    
+                except KeyboardInterrupt:
+                    raise  # Re-raise to handle at outer level
+                    
+                except Exception as e:
+                    consecutive_errors += 1
+                    print(f"\n⚠️ Error in trading cycle (attempt {consecutive_errors}/{max_retries}): {e}")
+                    
+                    if consecutive_errors >= max_retries:
+                        print(f"\n❌ Max retries ({max_retries}) exceeded. Stopping bot.")
+                        self.is_running = False
                         break
-                    print(f"💤 Next cycle in {i}s... (Press Ctrl+C to stop)", end='\r')
-                    time.sleep(min(10, i))
-                
-                print(" " * 50, end='\r')
+                    
+                    # Exponential backoff for retry
+                    retry_delay = min(300, cycle_delay * (2 ** (consecutive_errors - 1)))
+                    print(f"🔄 Retrying in {retry_delay} seconds...")
+                    
+                    # Try to recover state
+                    try:
+                        print("🔧 Attempting to recover state...")
+                        if not self.test_connections():
+                            print("📡 Reconnecting to exchange...")
+                            self.data_collector = GeminiDataCollector()
+                            self.portfolio = RealGeminiPortfolioManager()
+                        print("✅ State recovery successful")
+                    except Exception as recovery_error:
+                        print(f"❌ State recovery failed: {recovery_error}")
+                    
+                    time.sleep(retry_delay)
                 
         except KeyboardInterrupt:
             print(f"\n\n🛑 Trading stopped by user")
         except Exception as e:
-            print(f"\n❌ Trading error: {e}")
+            print(f"\n❌ Critical trading error: {e}")
             import traceback
             traceback.print_exc()
         finally:
