@@ -3,6 +3,65 @@ Risk Management Configuration
 Centralized settings for stop-loss, take-profit, and risk controls
 """
 
+class RiskParameterError(Exception):
+    """Exception raised for invalid risk parameters"""
+    pass
+
+def validate_percentage(value, name, min_val=0.0, max_val=1.0):
+    """Validate a percentage value is within acceptable range"""
+    if not isinstance(value, (int, float)):
+        raise RiskParameterError(f"{name} must be a number, got {type(value)}")
+    if not min_val <= value <= max_val:
+        raise RiskParameterError(f"{name} must be between {min_val} and {max_val}, got {value}")
+    return value
+
+def validate_risk_parameters():
+    """Validate all risk parameters on module load"""
+    errors = []
+    
+    # Validate stop-loss
+    try:
+        validate_percentage(STOP_LOSS_PERCENTAGE, "STOP_LOSS_PERCENTAGE", 0.001, 0.5)
+    except RiskParameterError as e:
+        errors.append(str(e))
+    
+    # Validate take-profit
+    try:
+        validate_percentage(TAKE_PROFIT_PERCENTAGE, "TAKE_PROFIT_PERCENTAGE", 0.001, 2.0)
+    except RiskParameterError as e:
+        errors.append(str(e))
+    
+    # Validate stop-loss < take-profit when both enabled
+    if STOP_LOSS_ENABLED and TAKE_PROFIT_ENABLED:
+        if STOP_LOSS_PERCENTAGE >= TAKE_PROFIT_PERCENTAGE:
+            errors.append(f"STOP_LOSS_PERCENTAGE ({STOP_LOSS_PERCENTAGE}) must be less than TAKE_PROFIT_PERCENTAGE ({TAKE_PROFIT_PERCENTAGE})")
+    
+    # Validate position risk
+    try:
+        validate_percentage(MAX_POSITION_RISK, "MAX_POSITION_RISK", 0.001, 0.1)
+        validate_percentage(MAX_PORTFOLIO_RISK, "MAX_PORTFOLIO_RISK", 0.01, 0.2)
+    except RiskParameterError as e:
+        errors.append(str(e))
+    
+    # Validate daily loss
+    try:
+        validate_percentage(MAX_DAILY_LOSS_PERCENTAGE, "MAX_DAILY_LOSS_PERCENTAGE", 0.001, 0.1)
+    except RiskParameterError as e:
+        errors.append(str(e))
+    
+    if MAX_DAILY_LOSS_USD <= 0:
+        errors.append(f"MAX_DAILY_LOSS_USD must be positive, got {MAX_DAILY_LOSS_USD}")
+    
+    # Validate drawdown
+    try:
+        validate_percentage(MAX_DRAWDOWN_PERCENTAGE, "MAX_DRAWDOWN_PERCENTAGE", 0.01, 0.5)
+    except RiskParameterError as e:
+        errors.append(str(e))
+    
+    if errors:
+        error_msg = "Risk parameter validation failed:\n" + "\n".join(f"  - {e}" for e in errors)
+        raise RiskParameterError(error_msg)
+
 # Stop-Loss Settings
 STOP_LOSS_ENABLED = True
 STOP_LOSS_PERCENTAGE = 0.05  # 5% stop-loss
@@ -88,3 +147,11 @@ EXIT_PRIORITY = [
     'oldest_position', # Exit oldest positions first
     'smallest_position' # Exit smallest positions first
 ]
+
+# Validate all parameters on module load
+try:
+    validate_risk_parameters()
+    print("✅ Risk parameters validated successfully")
+except RiskParameterError as e:
+    print(f"⚠️ Warning: {e}")
+    print("⚠️ Using default values, but parameters may be misconfigured")
