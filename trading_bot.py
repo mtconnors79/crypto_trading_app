@@ -248,6 +248,11 @@ class EnhancedTradingBot:
             return False
             
         if signal == 'buy' and confidence >= MIN_CONFIDENCE_THRESHOLD:
+            # Check if we already have a position in this symbol
+            if symbol in self.portfolio.positions:
+                print(f"   ⚠️ Already holding position in {symbol}")
+                return False
+            
             # Check position limits
             if len(self.portfolio.positions) >= MAX_POSITIONS:
                 print(f"   ⛔ Max positions reached ({MAX_POSITIONS})")
