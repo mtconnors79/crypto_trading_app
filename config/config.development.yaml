@@ -1,0 +1,36 @@
+# Development Environment Configuration
+# Automatically loaded when ENVIRONMENT=development
+
+# Development-friendly settings
+trading:
+  base_position_size: 10.0        # Small positions for testing
+  max_position_size: 20.0         # Low maximum for safety
+  min_position_size: 5.0          # Low minimum
+  max_daily_trades: 10            # Fewer trades for testing
+  max_positions: 2                # Only 2 positions
+  min_confidence_threshold: 0.4   # Higher confidence for safety
+  save_trades_to_csv: true        # Always save trades for analysis
+
+# Conservative risk for development
+risk_management:
+  stop_loss_percentage: 0.02      # Tight stop-loss (2%)
+  take_profit_percentage: 0.04    # Quick take-profit (4%)
+  max_position_risk: 0.005        # Very low risk (0.5%)
+  max_daily_loss_usd: 20.0        # Low daily loss limit
+
+# Faster cycles for development/testing
+constants:
+  default_cycle_delay: 30         # 30 second cycles
+  min_sleep_time: 5               # Short sleep
+  default_max_retries: 2          # Fewer retries
+
+# Development logging
+logging:
+  level: "DEBUG"                  # Verbose logging
+  log_trades: true
+  log_performance: true
+
+# Enable debug features
+development:
+  debug_mode: true
+  verbose_logging: true
