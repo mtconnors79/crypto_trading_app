@@ -5,12 +5,13 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import csv
 import json
+from config.config import DEFAULT_EXCHANGE
 
 load_dotenv()
 
 class GeminiDashboardClient:
     def __init__(self):
-        """Initialize Gemini client for dashboard data"""
+        """Initialize dashboard client with configured exchange"""
         api_key = os.getenv('GEMINI_API_KEY', '')
         secret = os.getenv('GEMINI_SECRET_KEY', '')
         
@@ -19,7 +20,9 @@ class GeminiDashboardClient:
             api_key = os.getenv('BINANCE_API_KEY', '')
             secret = os.getenv('BINANCE_SECRET_KEY', '')
         
-        self.exchange = ccxt.gemini({
+        # Dynamically create exchange based on config
+        exchange_class = getattr(ccxt, DEFAULT_EXCHANGE.lower())
+        self.exchange = exchange_class({
             'apiKey': api_key,
             'secret': secret,
             'enableRateLimit': True,

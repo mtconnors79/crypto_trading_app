@@ -5,12 +5,13 @@ import sys
 import os
 import ccxt
 from dotenv import load_dotenv
+from config.config import DEFAULT_EXCHANGE
 
 load_dotenv()
 
 class RealGeminiPortfolioManager:
     def __init__(self):
-        """Initialize portfolio manager with real Gemini account"""
+        """Initialize portfolio manager with configured exchange"""
         # Initialize Gemini connection
         api_key = os.getenv('GEMINI_API_KEY', '')
         secret = os.getenv('GEMINI_SECRET_KEY', '')
@@ -23,7 +24,9 @@ class RealGeminiPortfolioManager:
         if not api_key or not secret:
             raise Exception("API keys not found in .env file (checked GEMINI and BINANCE)")
         
-        self.exchange = ccxt.gemini({
+        # Dynamically create exchange based on config
+        exchange_class = getattr(ccxt, DEFAULT_EXCHANGE.lower())
+        self.exchange = exchange_class({
             'apiKey': api_key,
             'secret': secret,
             'enableRateLimit': True,
