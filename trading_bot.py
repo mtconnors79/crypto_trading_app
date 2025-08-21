@@ -5,13 +5,10 @@ Advanced Position Sizing & Partial Selling Logic
 """
 
 import time
-import json
 import csv
 from datetime import datetime, timedelta
 import sys
 import os
-import threading
-from concurrent.futures import ThreadPoolExecutor
 
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
