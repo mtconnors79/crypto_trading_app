@@ -17,6 +17,12 @@ from concurrent.futures import ThreadPoolExecutor
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 sys.path.append(os.path.dirname(__file__))
 
+# Set up logging
+from src.utils.logger import (
+    setup_logger, TradeLogger, PerformanceLogger,
+    get_trading_logger, get_error_logger
+)
+
 from src.data.collector import GeminiDataCollector
 from src.portfolio.manager import RealGeminiPortfolioManager
 from src.trading.strategy import AdvancedTradingStrategy
@@ -36,6 +42,14 @@ from config.risk_management import (
 class EnhancedTradingBot:
     def __init__(self):
         """Initialize the enhanced trading bot"""
+        # Set up logging
+        self.logger = get_trading_logger()
+        self.error_logger = get_error_logger()
+        self.trade_logger = TradeLogger()
+        self.performance_logger = PerformanceLogger()
+        
+        self.logger.info("Initializing Enhanced Trading Bot")
+        
         self.data_collector = GeminiDataCollector()
         self.portfolio = RealGeminiPortfolioManager()
         self.strategy = AdvancedTradingStrategy()
@@ -290,6 +304,9 @@ class EnhancedTradingBot:
                     print(f"   📊 Confidence: {confidence:.2f}")
                     print(f"   🎯 Quantity: {position_size:.6f}")
                     
+                    # Log the trade
+                    self.trade_logger.log_buy(symbol, position_size, current_price, confidence, cost)
+                    
                     self._log_trade('BUY', symbol, current_price, position_size, confidence, msg, investment_amount)
                     return True
                 else:
@@ -319,6 +336,9 @@ class EnhancedTradingBot:
                 print(f"   💰 Revenue: ${revenue:.2f}")
                 print(f"   📊 Reason: {sell_reason}")
                 print(f"   💹 P&L: ${pnl:+.2f}")
+                
+                # Log the trade
+                self.trade_logger.log_sell(symbol, sell_quantity, current_price, sell_reason, pnl)
                 
                 # If complete exit, clean up tracking
                 if sell_quantity == self.portfolio.positions.get(symbol, {}).get('quantity', 0):
@@ -384,12 +404,14 @@ class EnhancedTradingBot:
                 positions_to_sell.append((symbol, 'stop_loss', current_price))
                 print(f"\n🛑 STOP-LOSS TRIGGERED: {symbol}")
                 print(f"   Current: ${current_price:.6f} | Stop: ${self.stop_losses[symbol]:.6f}")
+                self.logger.warning(f"Stop-loss triggered for {symbol} at ${current_price:.6f}")
             
             # Check take-profit
             elif symbol in self.take_profits and current_price >= self.take_profits[symbol]:
                 positions_to_sell.append((symbol, 'take_profit', current_price))
                 print(f"\n🎯 TAKE-PROFIT TRIGGERED: {symbol}")
                 print(f"   Current: ${current_price:.6f} | Target: ${self.take_profits[symbol]:.6f}")
+                self.logger.info(f"Take-profit triggered for {symbol} at ${current_price:.6f}")
         
         # Execute stop-loss/take-profit sells
         for symbol, reason, price in positions_to_sell:
