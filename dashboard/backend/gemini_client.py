@@ -11,8 +11,13 @@ load_dotenv()
 class GeminiDashboardClient:
     def __init__(self):
         """Initialize Gemini client for dashboard data"""
-        api_key = os.getenv('BINANCE_API_KEY', '')
-        secret = os.getenv('BINANCE_SECRET_KEY', '')
+        api_key = os.getenv('GEMINI_API_KEY', '')
+        secret = os.getenv('GEMINI_SECRET_KEY', '')
+        
+        # Fall back to Binance keys if Gemini keys not set
+        if not api_key:
+            api_key = os.getenv('BINANCE_API_KEY', '')
+            secret = os.getenv('BINANCE_SECRET_KEY', '')
         
         self.exchange = ccxt.gemini({
             'apiKey': api_key,
