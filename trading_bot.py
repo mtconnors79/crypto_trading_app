@@ -21,27 +21,13 @@ from src.data.collector import GeminiDataCollector
 from src.portfolio.manager import RealGeminiPortfolioManager
 from src.trading.strategy import AdvancedTradingStrategy
 from config.trading_symbols import SYMBOLS, MARKET_CONDITION
-
-# ENHANCED TRADING CONFIGURATION
-BASE_POSITION_SIZE = 50.0  # Base amount per trade
-MAX_POSITION_SIZE = 80.0   # Maximum per trade (for highest confidence)
-MIN_POSITION_SIZE = 20.0   # Minimum per trade (for lowest confidence)
-MIN_CONFIDENCE_THRESHOLD = 0.25
-MAX_DAILY_TRADES = 50
-MAX_POSITIONS = 4
-TRADE_COOLDOWN = 90
-MAX_DAILY_LOSS = 15.0
-SAVE_TRADES_TO_CSV = True
-
-# Partial Selling Configuration
-PARTIAL_SELL_ENABLED = True
-FIRST_SELL_PERCENTAGE = 0.5   # Sell 50% on first sell signal
-SECOND_SELL_PERCENTAGE = 1.0  # Sell remaining 50% on second signal
-
-# Gemini Fee Structure
-GEMINI_MAKER_FEE = 0.0025
-GEMINI_TAKER_FEE = 0.0035
-TRADING_FEE = GEMINI_MAKER_FEE
+from config.config import (
+    BASE_POSITION_SIZE, MAX_POSITION_SIZE, MIN_POSITION_SIZE,
+    MIN_CONFIDENCE_THRESHOLD, MAX_DAILY_TRADES, MAX_POSITIONS,
+    TRADE_COOLDOWN, MAX_DAILY_LOSS, SAVE_TRADES_TO_CSV,
+    PARTIAL_SELL_ENABLED, FIRST_SELL_PERCENTAGE, SECOND_SELL_PERCENTAGE,
+    DEFAULT_TRADING_FEE as TRADING_FEE
+)
 
 class EnhancedTradingBot:
     def __init__(self):
