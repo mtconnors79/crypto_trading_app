@@ -12,11 +12,16 @@ class RealGeminiPortfolioManager:
     def __init__(self):
         """Initialize portfolio manager with real Gemini account"""
         # Initialize Gemini connection
-        api_key = os.getenv('BINANCE_API_KEY', '')
-        secret = os.getenv('BINANCE_SECRET_KEY', '')
+        api_key = os.getenv('GEMINI_API_KEY', '')
+        secret = os.getenv('GEMINI_SECRET_KEY', '')
+        
+        # Fall back to Binance keys if Gemini keys not set
+        if not api_key:
+            api_key = os.getenv('BINANCE_API_KEY', '')
+            secret = os.getenv('BINANCE_SECRET_KEY', '')
         
         if not api_key or not secret:
-            raise Exception("Gemini API keys not found in .env file")
+            raise Exception("API keys not found in .env file (checked GEMINI and BINANCE)")
         
         self.exchange = ccxt.gemini({
             'apiKey': api_key,
