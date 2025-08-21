@@ -6,22 +6,25 @@ import sys
 import os
 import requests
 import numpy as np
+from config.config import DEFAULT_EXCHANGE
 
 class GeminiDataCollector:
     def __init__(self):
-        """Initialize with Gemini exchange"""
+        """Initialize with configured exchange"""
         self.exchange = None
-        self.exchange_name = "GEMINI"
-        self._initialize_gemini()
+        self.exchange_name = DEFAULT_EXCHANGE.upper()
+        self._initialize_exchange()
         
-    def _initialize_gemini(self):
-        """Initialize Gemini exchange"""
+    def _initialize_exchange(self):
+        """Initialize configured exchange"""
         try:
             # Load API keys from environment if available
             api_key = os.getenv('BINANCE_API_KEY', '')
             secret = os.getenv('BINANCE_SECRET_KEY', '')
             
-            self.exchange = ccxt.gemini({
+            # Dynamically create exchange based on config
+            exchange_class = getattr(ccxt, DEFAULT_EXCHANGE.lower())
+            self.exchange = exchange_class({
                 'apiKey': api_key,
                 'secret': secret,
                 'enableRateLimit': True,
