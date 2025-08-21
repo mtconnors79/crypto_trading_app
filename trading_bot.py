@@ -406,8 +406,8 @@ class EnhancedTradingBot:
         
         print(f"\n⚡ Enhanced cycle completed | Trades executed: {trades_executed}")
     
-    def run(self, duration_hours=2, cycle_delay=120):
-        """Run the enhanced trading bot"""
+    def run(self, duration_hours=2, cycle_delay=120, max_retries=3):
+        """Run the enhanced trading bot with error recovery"""
         if not self.test_connections():
             print("❌ Cannot start without exchange connection")
             return
@@ -419,31 +419,66 @@ class EnhancedTradingBot:
         print(f"💸 Dynamic position sizing: ${MIN_POSITION_SIZE}-${MAX_POSITION_SIZE}")
         print(f"🔄 Partial selling: {'ENABLED' if PARTIAL_SELL_ENABLED else 'DISABLED'}")
         print(f"📈 Strategy: {MARKET_CONDITION.upper()} with enhanced logic")
+        print(f"🛡️ Error recovery: ENABLED (max {max_retries} retries)")
         print(f"\n💡 Press Ctrl+C anytime to stop and see results")
         
         end_time = datetime.now() + timedelta(hours=duration_hours)
         self.is_running = True
+        consecutive_errors = 0
         
         try:
             while self.is_running and datetime.now() < end_time:
-                cycle_start = time.time()
-                self.run_trading_cycle()
-                cycle_duration = time.time() - cycle_start
-                
-                sleep_time = max(20, cycle_delay - int(cycle_duration))
-                
-                for i in range(sleep_time, 0, -10):
-                    if not self.is_running:
+                try:
+                    cycle_start = time.time()
+                    self.run_trading_cycle()
+                    cycle_duration = time.time() - cycle_start
+                    
+                    # Reset error counter on successful cycle
+                    consecutive_errors = 0
+                    
+                    sleep_time = max(20, cycle_delay - int(cycle_duration))
+                    
+                    for i in range(sleep_time, 0, -10):
+                        if not self.is_running:
+                            break
+                        print(f"💤 Next cycle in {i}s... (Press Ctrl+C to stop)", end='\r')
+                        time.sleep(min(10, i))
+                    
+                    print(" " * 50, end='\r')
+                    
+                except KeyboardInterrupt:
+                    raise  # Re-raise to handle at outer level
+                    
+                except Exception as e:
+                    consecutive_errors += 1
+                    print(f"\n⚠️ Error in trading cycle (attempt {consecutive_errors}/{max_retries}): {e}")
+                    
+                    if consecutive_errors >= max_retries:
+                        print(f"\n❌ Max retries ({max_retries}) exceeded. Stopping bot.")
+                        self.is_running = False
                         break
-                    print(f"💤 Next cycle in {i}s... (Press Ctrl+C to stop)", end='\r')
-                    time.sleep(min(10, i))
-                
-                print(" " * 50, end='\r')
+                    
+                    # Exponential backoff for retry
+                    retry_delay = min(300, cycle_delay * (2 ** (consecutive_errors - 1)))
+                    print(f"🔄 Retrying in {retry_delay} seconds...")
+                    
+                    # Try to recover state
+                    try:
+                        print("🔧 Attempting to recover state...")
+                        if not self.test_connections():
+                            print("📡 Reconnecting to exchange...")
+                            self.data_collector = GeminiDataCollector()
+                            self.portfolio = RealGeminiPortfolioManager()
+                        print("✅ State recovery successful")
+                    except Exception as recovery_error:
+                        print(f"❌ State recovery failed: {recovery_error}")
+                    
+                    time.sleep(retry_delay)
                 
         except KeyboardInterrupt:
             print(f"\n\n🛑 Trading stopped by user")
         except Exception as e:
-            print(f"\n❌ Trading error: {e}")
+            print(f"\n❌ Critical trading error: {e}")
             import traceback
             traceback.print_exc()
         finally:
