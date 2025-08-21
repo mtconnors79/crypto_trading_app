@@ -44,7 +44,16 @@ async def websocket_endpoint(websocket: WebSocket):
             await asyncio.sleep(10)  # Update every 10 seconds
             
     except WebSocketDisconnect:
-        active_connections.remove(websocket)
+        if websocket in active_connections:
+            active_connections.remove(websocket)
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+        if websocket in active_connections:
+            active_connections.remove(websocket)
+        try:
+            await websocket.close()
+        except:
+            pass
 
 @app.get("/api/portfolio")
 async def get_portfolio():
